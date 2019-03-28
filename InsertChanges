@@ -1,0 +1,315 @@
+(DEFUN LISPDRUK ()
+
+;INSERT NEW TEXT
+
+(SETQ ZM1 "SIGNALS - CONTROLLED")
+(SETQ ZM2 "ELLIOTT WEST - SIGNALS 217 & 218")
+
+;CHANGE UNITS OF BLOCK INSERT
+
+(SETVAR "INSUNITS" 0)
+
+
+;DELETE OLD TABLE
+
+(SETQ OLD_BLOCK (SSGET "_X" '((2 . "title*"))))
+(ENTDEL (SSNAME OLD_BLOCK 0))
+(COMMAND "-PURGE" "B" "*" "N")
+
+;FIND TEXT TO CHANGE
+
+(COMMAND "-BEDIT" "S&C-tb-4line")
+(SETQ TITLE1 (SSGET "_X" '((2 . "TITLE1"))))
+(SETQ T1 (ENTGET (SSNAME TITLE1 0)))
+(SETQ TITLE2 (SSGET "_X" '((2 . "TITLE2"))))
+(SETQ T2 (ENTGET (SSNAME TITLE2 0)))
+(SETQ TITLE3 (SSGET "_X" '((2 . "TITLE3"))))
+(SETQ T3 (ENTGET (SSNAME TITLE3 0)))
+(SETQ TITLE4 (SSGET "_X" '((2 . "TITLE4"))))
+(SETQ T4 (ENTGET (SSNAME TITLE4 0)))
+(SETQ DWGNUM (SSGET "_X" '((2 . "DWGNUM"))))
+(SETQ DWGN (ENTGET (SSNAME DWGNUM 0)))
+
+;NEW TEXT PLACEMENT
+
+
+(SETQ T1_N (SUBST (LIST 11 14.1875 1.6250 0) (ASSOC 11 T1) T1))
+(ENTMOD T1_N)
+(SETQ T2_N (SUBST (LIST 11 14.1875 1.3750 0) (ASSOC 11 T2) T2))
+(ENTMOD T2_N)
+(SETQ T3_N (SUBST (LIST 11 14.1875 1.1250 0) (ASSOC 11 T3) T3))
+(ENTMOD T3_N)
+(SETQ T4_N (SUBST (LIST 11 14.1875 0.8750 0) (ASSOC 11 T4) T4))
+(ENTMOD T4_N)
+(SETQ T5_N (SUBST (LIST 11 14.3750 0.6250 0) (ASSOC 11 DWGN) DWGN))
+(ENTMOD T5_N)
+
+; SAVE AND SYNC BLOCK
+
+(COMMAND "BSAVE")
+(COMMAND "BCLOSE")
+(COMMAND "ATTSYNC" "Name" "S&C-tb-4line")
+
+
+; CHANGE SHEET NUMBER
+
+;; Set Attribute Value  -  Lee Mac
+(defun LM:setattributevalue ( blk tag val / enx )
+    (if (= "ATTRIB" (cdr (assoc 0 (setq enx (entget (setq blk (entnext blk)))))))
+        (if (= (strcase tag) (strcase (cdr (assoc 2 enx))))
+            (if (entmod (subst (cons 1 val) (assoc 1 enx) enx))
+                (progn
+                    (entupd blk)
+                    val
+                )
+            )
+            (LM:setattributevalue blk tag val)
+        )
+    )
+)
+
+
+;COPY FIXED TABLE
+
+(defun open_dbx	(dwg / dbx)
+(if (< (atoi (substr (getvar "ACADVER") 1 2)) 16)
+(setq dbx (vlax-create-object "ObjectDBX.AxDbDocument"))
+(setq dbx (vlax-create-object
+(strcat	"ObjectDBX.AxDbDocument."
+(substr (getvar "ACADVER") 1 2)
+)
+)
+)
+)
+(vla-open dbx dwg)
+dbx
+)
+
+(setq Dbx (open_dbx "c:/Blok/Blok.dwg")) ; Change the file name here
+(vla-CopyObjects
+Dbx
+(vlax-safearray-fill
+(vlax-make-safearray vlax-vbObject '(0 . 0))
+(list (vla-item (vla-get-blocks dbx) "titleblock")) ; Change the block name here
+)
+(vla-get-blocks
+(vla-get-activedocument (vlax-get-acad-object))
+)
+)
+(vlax-release-object dbx)
+
+(SETQ PW '(0 0 0)) ;Punkt wstawienia nowej tabelki
+
+(SETVAR "ATTREQ" 1)
+(SETVAR "ATTDIA" 0)
+(COMMAND "-INSERT" "titleblock" PW "1" "1" "0" "1")
+(SETVAR "ATTDIA" 1)
+
+
+(princ)   
+(setq fourline "S&C-TB-4LINE")
+(setq fiveline "S&C-TB-5LINE")
+(if (tblsearch "block" fourline)
+	(progn
+		(setq blkEntName (ssname (ssget "x" (list (cons 0 "INSERT") (cons 2 "S&C-TB-4LINE"))) 0))
+		
+		 (setq dwgnumTag "DWGNUM")
+		 (setq dwgnumVal (vl-filename-base (getvar "dwgname") ))
+		 (LM:setattributevalue blkEntName dwgnumTag dwgnumVal)
+		
+
+		(setq numfiles (length (vl-directory-files (getvar 'dwgprefix) "*.dwg" 1)))
+		(setq files (vl-directory-files (getvar 'dwgprefix) "*.dwg" 1))
+		(foreach f files 
+			(if (> (strlen f) 22)
+				(setq numfiles (- numfiles 1))					
+			)
+		)
+
+		
+		(setq numofnumTag "#of##")
+		(setq numofnumVal (STRCAT (vl-string-left-trim "0" (substr (vl-filename-base (getvar "dwgname")) 13 3)) (STRCAT " OF " (itoa numfiles)))) 
+		(LM:setattributevalue blkEntName numofnumTag numofnumVal)
+		(princ (strcat "\n" fourline " exists."))
+	)
+)
+
+(if (tblsearch "block" fiveline)
+	(progn
+	(setq blkEntName (ssname (ssget "x" (list (cons 0 "INSERT") (cons 2 "S&C-TB-5LINE"))) 0))
+	
+	(setq dwgnumTag "DWGNUM")
+	(setq dwgnumVal (vl-filename-base (getvar "dwgname") ))
+	(LM:setattributevalue blkEntName dwgnumTag dwgnumVal)
+	
+	(setq numfiles (length (vl-directory-files (getvar 'dwgprefix) "*.dwg" 1)))
+	(setq files (vl-directory-files (getvar 'dwgprefix) "*.dwg" 1))
+	(foreach f files 
+		(if (> (strlen f) 22)
+			(setq numfiles (- numfiles 1))					
+		)
+	)
+		
+	(setq numofnumTag "#of##")
+	(setq numofnumVal (STRCAT (vl-string-left-trim "0" (substr (vl-filename-base (getvar "dwgname")) 13 3)) (STRCAT " OF " (itoa numfiles)))) 
+	(LM:setattributevalue blkEntName numofnumTag numofnumVal)
+	)
+ 
+)
+
+;CHANGE ATTRIBUTES TITLE1 AND TITLE2
+
+(defun reptag (tag newvalue ent / alist )
+(if (and (= (type ent) (read "VLA-OBJECT")) newvalue)
+(progn
+(setq alist ( vlax-invoke ent 'GetAttributes))
+ (foreach a alist
+  (if (=  (vla-get-tagstring a) tag)
+  (vlax-put-property a 'TextString newvalue)
+  );i
+ );fe
+);p
+(if (= 'ename (type ent)) (reptag tag newvalue (vlax-ename->vla-object ent)));i
+);i
+(princ));d
+
+(SETQ RAMKA (SSGET "_X" '((2 . "S&C-tb-4line"))))
+(SETQ ent (SSNAME RAMKA 0))
+(reptag "TITLE1" ZM1 ent)
+(reptag "TITLE2" ZM2 ent)
+(princ)
+(COMMAND "REGEN")
+
+
+; DELETE TEXT IF
+
+(SETQ ERASE "RED = IN") ;--TEXT TO DELETE--
+(SETQ ERASE (STRCAT "*" ERASE "*")) 
+(SETQ I1 0)
+(SETQ RED_WEK (SSGET "_X" (LIST (CONS 1 ERASE))))
+(IF (/= nil RED_WEK)
+  (PROGN
+     (SETQ RED_LEN (SSLENGTH RED_WEK))
+        (REPEAT RED_LEN
+        (SETQ RED_ER (SSNAME RED_WEK I1))
+        (ENTDEL RED_ER)
+        (SETQ I1 (+ 1 I1))
+     )
+   )
+ )
+(PRINC)
+(COMMAND "REGEN")
+
+; DELETE TEXT IF
+
+(SETQ ERASE "ORANGE = IN") ;--TEXT TO DELETE--
+(SETQ ERASE (STRCAT "*" ERASE "*")) 
+(SETQ I1 0)
+(SETQ RED_WEK (SSGET "_X" (LIST (CONS 1 ERASE))))
+(IF (/= nil RED_WEK)
+  (PROGN
+     (SETQ RED_LEN (SSLENGTH RED_WEK))
+        (REPEAT RED_LEN
+        (SETQ RED_ER (SSNAME RED_WEK I1))
+        (ENTDEL RED_ER)
+        (SETQ I1 (+ 1 I1))
+     )
+   )
+ )
+(PRINC)
+(COMMAND "REGEN")
+
+
+;CHANGE LAYER IF
+
+(SETQ LAY_OLD "5") ;--NAME OF SOURCE LAYER--
+(SETQ LAY_NEW "0") ;--NAME OF TARGET LAYER--
+(SETQ I2 0)
+(SETQ LAY_LIST (SSGET "_X" (LIST (CONS 8 LAY_OLD))))
+(IF (/= nil LAY_LIST)
+   (PROGN
+         (SETQ LAY_LEN (SSLENGTH LAY_LIST))
+         (REPEAT LAY_LEN
+           (SETQ LAY_ELO (ENTGET (SSNAME LAY_LIST I2)))
+           (SETQ LAY_ELN (SUBST (CONS 8 LAY_NEW) (ASSOC 8 LAY_ELO) LAY_ELO))
+           (ENTMOD LAY_ELN)
+           (SETQ I2 (+ 1 I2))
+         )
+    )
+)
+(PRINC)
+(COMMAND "REGEN")
+
+
+;CHANGE LAYER IF
+
+(SETQ LAY_OLD "3") ;--NAME OF SOURCE LAYER--
+(SETQ LAY_NEW "0") ;--NAME OF TARGET LAYER--
+(SETQ I2 0)
+(SETQ LAY_LIST (SSGET "_X" (LIST (CONS 8 LAY_OLD))))
+(IF (/= nil LAY_LIST)
+   (PROGN
+         (SETQ LAY_LEN (SSLENGTH LAY_LIST))
+         (REPEAT LAY_LEN
+           (SETQ LAY_ELO (ENTGET (SSNAME LAY_LIST I2)))
+           (SETQ LAY_ELN (SUBST (CONS 8 LAY_NEW) (ASSOC 8 LAY_ELO) LAY_ELO))
+           (ENTMOD LAY_ELN)
+           (SETQ I2 (+ 1 I2))
+         )
+    )
+)
+(PRINC)
+(COMMAND "REGEN")
+
+
+;DELETE ELEMENTS IF LAYER
+
+(SETQ LAY_DEL "4") ;--NAME OF LAYER--
+(SETQ I3 0)
+(SETQ LAY_LIST1 (SSGET "_X" (LIST (CONS 8 LAY_DEL))))
+(IF (/= nil LAY_LIST1)
+  (PROGN
+    
+     (SETQ LAY_LEN1 (SSLENGTH LAY_LIST1))
+     (REPEAT LAY_LEN1
+         (SETQ LAY_ELD (SSNAME LAY_LIST1 I3))
+         (ENTDEL LAY_ELD)
+         (SETQ I3 (+ 1 I3))
+     )
+   )
+)
+(COMMAND "REGEN")
+
+;DELETE ELEMENTS IF LAYER
+
+(SETQ LAY_DEL "6") ;--NAME OF LAYER--
+(SETQ I3 0)
+(SETQ LAY_LIST1 (SSGET "_X" (LIST (CONS 8 LAY_DEL))))
+(IF (/= nil LAY_LIST1)
+  (PROGN
+     (SETQ LAY_LEN1 (SSLENGTH LAY_LIST1))
+     (REPEAT LAY_LEN1
+         (SETQ LAY_ELD (SSNAME LAY_LIST1 I3))
+         (ENTDEL LAY_ELD)
+         (SETQ I3 (+ 1 I3))
+     )
+   )
+)
+(COMMAND "REGEN")
+
+
+
+;PRINTING
+
+(SETQ PW1 '(0.7509 0.4998))
+(SETQ PW2 '(16.2509 10.4998))
+(SETQ FILE_N (strcat (getvar "dwgprefix") (VL-filename-base (getvar "dwgname")) ".pdf"))
+   
+(COMMAND "-PLOT" "Yes" "Model" "dwg to pdf.pc3" "ANSI FULL bleed B (17.00 x 11.00 Inches)" "Inches" "Landscape" "No" "Window" PW1 PW2 "1:1" "center" "Yes" "PlotStyleTable01.ctb" "Yes" "Wireframe" FILE_N "yes" "yes")
+
+
+
+
+
+(PRINC)
+)
